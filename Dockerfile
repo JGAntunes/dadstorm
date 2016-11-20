@@ -1,4 +1,4 @@
-FROM microsoft/dotnet
+FROM microsoft/dotnet-framework:4.6.2
 
 # copy project.json and restore as distinct layers
 WORKDIR /dadstorm

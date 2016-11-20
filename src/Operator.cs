@@ -12,7 +12,7 @@ namespace Operator
     public String OperatorSpec { get; }
     public ICollection<Object> Parameters { get; }
 
-    abstract public IList<Tuple> execute(IList<Tuple> tuples);
+    abstract public IList<TupleStream> execute(IList<TupleStream> tuples);
   }
 
   class Unique : Operator
@@ -24,12 +24,12 @@ namespace Operator
       this.FieldNumber = fieldNumber;
     }
 
-    public override IList<Tuple> execute(IList<Tuple> tuples) {
+    public override IList<TupleStream> execute(IList<TupleStream> tuples) {
       var element = tuples[this.FieldNumber];
-      var output = new List<Tuple>();
+      var output = new List<TupleStream>();
       tuples.removeAt(this.FieldNumber);
 
-      foreach (Tuple t in tuples)
+      foreach (TupleStream t in tuples)
       {
         if(t.Equals(element))
           return output;
@@ -41,8 +41,8 @@ namespace Operator
 
   class Count : Operator
   {
-    public override IList<Tuple> execute(IList<Tuple> tuples) {
-      var output = new List<Tuple>();
+    public override IList<TupleStream> execute(IList<TupleStream> tuples) {
+      var output = new List<TupleStream>();
       output.Add(tuples.Count);
       return output;
     }
@@ -50,21 +50,21 @@ namespace Operator
 
   class Dup : Operator
   {
-    public override IList<Tuple> execute(IList<Tuple> tuples) {
+    public override IList<TupleStream> execute(IList<TupleStream> tuples) {
       return tuples;
     }
   }
 
   class Filter : Operator
   {
-    public override IList<Tuple> execute(IList<Tuple> tuples) {
+    public override IList<TupleStream> execute(IList<TupleStream> tuples) {
       return tuples;
     }
   }
 
   class Custom : Operator
   {
-    public override IList<Tuple> execute(IList<Tuple> tuples) {
+    public override IList<TupleStream> execute(IList<TupleStream> tuples) {
       return tuples;
     }
   }
