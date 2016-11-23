@@ -46,7 +46,7 @@
     <Compile Include="Test.cs" />
     <Compile Include="Client.cs" />
     <Compile Include="PCS.cs" />
-    <Compile Include="IPolicy.cs" />
+    <Compile Include="Policy.cs" />
     <Compile Include="Node.cs" />
     <Compile Include="Operator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

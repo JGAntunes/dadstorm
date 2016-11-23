@@ -8,9 +8,6 @@ namespace DADStorm
 {
     public class Client
     {
-        public static IAsyncResult ExecAsync()
-        {
-            
-        }
+        //public static IAsyncResult ExecAsync()
     }
 }

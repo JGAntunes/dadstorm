@@ -10,5 +10,10 @@ namespace DADStorm
         {
             this.Elems = elems;
         }
+
+        public TupleStream()
+        {
+            this.Elems = new List<string>();
+        }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
@@ -20,14 +21,16 @@ namespace DADStorm
         public string OperatorSpec { get; }
         public ICollection<object> OperatorParameters { get; }
 
-        WaitHandle[] AsyncHandles = new WaitHandle[10];
+        WaitHandle[] AsyncHandles;
 
-        public Operator(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica)
+        public Operator(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas)
         {
             this.Id = id;
             this.OperatorSpec = operatorSpec;
             this.Replica = replica;
             this.ResultTuples = new List<TupleStream>();
+            this.OutputReplicas = outputReplicas;
+            this.AsyncHandles = new WaitHandle[10];
         }
 
         abstract public void Execute(TupleStream tuple);
@@ -37,7 +40,8 @@ namespace DADStorm
         private void AsyncCallBack(IAsyncResult ar)
         {
             // OperatorDelegate del = (OperatorDelegate)((AsyncResult)ar).AsyncDelegate;
-            Console.WriteLine("\r\n**SUCCESS**: invoked callback");
+            Console.WriteLine("\r\n**SUCCESS**: invoked callback " + ar.AsyncState);
+            
             // int handleNum = (int) ar.AsyncState;
             // Signal the thread.
             // this.AsyncHandles[handleNum].Set();
@@ -50,16 +54,23 @@ namespace DADStorm
             // Console.WriteLine(new String('-', 80));
             // Console.WriteLine();
             int handleNum = 0;
+            this.AsyncHandles = new WaitHandle[this.OutputReplicas.Count * this.ResultTuples.Count];
+            Console.WriteLine(this.OutputReplicas.Count * this.ResultTuples.Count);
             foreach (Replica rep in this.OutputReplicas)
             {
                 foreach (TupleStream tuple in this.ResultTuples)
                 {
                     string nodeUri = rep.resolve().ToString();
-                    TcpChannel channel = new TcpChannel();
+                    IDictionary prop = new Hashtable();
+                    prop["name"] = prop.GetHashCode().ToString();
+                    TcpChannel channel = new TcpChannel(prop, null, null);
                     ChannelServices.RegisterChannel(channel, true);
-                    Operator op = (Operator)Activator.GetObject(
-                        typeof(Operator),
-                        nodeUri);
+
+                    Dup op = (Dup)Activator.GetObject(
+                        typeof(Dup),
+                        nodeUri + "op");
+
+                    op.Execute(tuple);
                     // This delegate is an asynchronous delegate. Two delegates must 
                     // be created. The first is the system-defined AsyncCallback 
                     // delegate, which references the method that the remote type calls 
@@ -75,11 +86,13 @@ namespace DADStorm
                     // thread continues immediately without waiting for the return of 
                     // the method call. 
                     IAsyncResult RemAr = RemoteDel.BeginInvoke(tuple, RemoteCallback, handleNum);
-                    // AsyncHandles[handleNum] = RemAr.AsyncWaitHandle.WaitAll();
-                    // handleNum++;
+                    Console.WriteLine("This is right after invoking");
+                    AsyncHandles.SetValue(RemAr.AsyncWaitHandle, handleNum);
+                    handleNum++;
                 }
             }
             WaitHandle.WaitAll(AsyncHandles);
+            handleNum = 0;
         }
     }
 
@@ -88,7 +101,7 @@ namespace DADStorm
         public int FieldNumber { get; }
         public IDictionary<string, int> InputTuples { get; }
 
-        public Unique(int fieldNumber, string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica) : base(id, operatorSpec, operatorParameters, replica)
+        public Unique(int fieldNumber, string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
         {
             this.FieldNumber = fieldNumber;
             this.InputTuples = new Dictionary<string, int>();
@@ -109,7 +122,7 @@ namespace DADStorm
     {
         public int TupleCount { get; set; }
 
-        public Count(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica) : base(id, operatorSpec, operatorParameters, replica)
+        public Count(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
         {
             this.TupleCount = 0;
         }
@@ -123,13 +136,16 @@ namespace DADStorm
     {
         public IList<TupleStream> InputTuples { get; }
 
-        public Dup(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica) : base(id, operatorSpec, operatorParameters, replica)
+        public Dup(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
         {
+            Console.WriteLine("Created DUP");
             this.InputTuples = new List<TupleStream>();
         }
 
         public override void Execute(TupleStream tuple)
         {
+            Console.WriteLine("Executing DUP");
+            System.Threading.Thread.Sleep(1000);
             this.InputTuples.Add(tuple);
         }
     }
@@ -138,7 +154,7 @@ namespace DADStorm
     {
         public IList<TupleStream> InputTuples { get; }
 
-        public Filter(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica) : base(id, operatorSpec, operatorParameters, replica)
+        public Filter(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
         {
             this.InputTuples = new List<TupleStream>();
         }
@@ -153,7 +169,7 @@ namespace DADStorm
     {
         public IList<TupleStream> InputTuples { get; }
 
-        public Custom(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica) : base(id, operatorSpec, operatorParameters, replica)
+        public Custom(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
         {
             this.InputTuples = new List<TupleStream>();
         }
