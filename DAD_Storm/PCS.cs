@@ -46,6 +46,14 @@ namespace DADStorm
             {
                 this.Operators.Add(op);
             }
+
+            public void Start()
+            {
+                foreach(Operator op in this.Operators)
+                {
+                    op.Replica.Run();
+                }
+            }
         }
     }
 }

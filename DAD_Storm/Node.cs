@@ -33,7 +33,7 @@ namespace DADStorm
             ChannelServices.RegisterChannel(channel, true);
 
             RemotingConfiguration.RegisterWellKnownServiceType(
-                typeof(Dup),
+                operatorType,
                 "op",
                 WellKnownObjectMode.Singleton);
 

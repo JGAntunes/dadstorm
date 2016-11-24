@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace DADStorm
 {
+    [Serializable]
     public class TupleStream
     {
         public IList<string> Elems { get; }

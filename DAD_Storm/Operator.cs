@@ -33,6 +33,11 @@ namespace DADStorm
             this.AsyncHandles = new WaitHandle[10];
         }
 
+        public Operator()
+        {
+            this.ResultTuples = new List<TupleStream>();
+        }
+
         abstract public void Execute(TupleStream tuple);
 
         // This is the call that the AsyncCallBack delegate references.
@@ -66,8 +71,8 @@ namespace DADStorm
                     TcpChannel channel = new TcpChannel(prop, null, null);
                     ChannelServices.RegisterChannel(channel, true);
 
-                    Dup op = (Dup)Activator.GetObject(
-                        typeof(Dup),
+                    Operator op = (Operator)Activator.GetObject(
+                        typeof(Operator),
                         nodeUri + "op");
 
                     op.Execute(tuple);
@@ -135,6 +140,12 @@ namespace DADStorm
     public class Dup : Operator
     {
         public IList<TupleStream> InputTuples { get; }
+
+        public Dup()
+        {
+            Console.WriteLine("Created DUP");
+            this.InputTuples = new List<TupleStream>();
+        }
 
         public Dup(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
         {
