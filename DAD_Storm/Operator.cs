@@ -7,187 +7,107 @@ using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Remoting.Messaging;
 using System.Threading;
 
-namespace DADStorm
+namespace DADStormCore
 {
     public abstract class Operator : MarshalByRefObject
     {
-        public delegate void OperatorDelegate(TupleStream tuple);
-
         public string Id { get; }
-        // public ICollection<Operator> InputOps { get; }
-        public IList<TupleStream> ResultTuples { get; }
-        public ICollection<Replica> OutputReplicas { get; }
-        public Replica Replica { get; }
         public string OperatorSpec { get; }
         public ICollection<object> OperatorParameters { get; }
 
-        WaitHandle[] AsyncHandles;
-
-        public Operator(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas)
+        public Operator(string id, string operatorSpec, ICollection<object> operatorParameters)
         {
             this.Id = id;
             this.OperatorSpec = operatorSpec;
-            this.Replica = replica;
-            this.ResultTuples = new List<TupleStream>();
-            this.OutputReplicas = outputReplicas;
-            this.AsyncHandles = new WaitHandle[10];
         }
 
-        public Operator()
-        {
-            this.ResultTuples = new List<TupleStream>();
-        }
-
-        abstract public void Execute(TupleStream tuple);
-
-        // This is the call that the AsyncCallBack delegate references.
-        [OneWayAttribute]
-        private void AsyncCallBack(IAsyncResult ar)
-        {
-            // OperatorDelegate del = (OperatorDelegate)((AsyncResult)ar).AsyncDelegate;
-            Console.WriteLine("\r\n**SUCCESS**: invoked callback " + ar.AsyncState);
-            
-            // int handleNum = (int) ar.AsyncState;
-            // Signal the thread.
-            // this.AsyncHandles[handleNum].Set();
-            return;
-        }
-
-        public void Done()
-        {
-            // Console.WriteLine("Remote synchronous and asynchronous delegates.");
-            // Console.WriteLine(new String('-', 80));
-            // Console.WriteLine();
-            int handleNum = 0;
-            this.AsyncHandles = new WaitHandle[this.OutputReplicas.Count * this.ResultTuples.Count];
-            Console.WriteLine(this.OutputReplicas.Count * this.ResultTuples.Count);
-            foreach (Replica rep in this.OutputReplicas)
-            {
-                foreach (TupleStream tuple in this.ResultTuples)
-                {
-                    string nodeUri = rep.resolve().ToString();
-                    IDictionary prop = new Hashtable();
-                    prop["name"] = prop.GetHashCode().ToString();
-                    TcpChannel channel = new TcpChannel(prop, null, null);
-                    ChannelServices.RegisterChannel(channel, true);
-
-                    Operator op = (Operator)Activator.GetObject(
-                        typeof(Operator),
-                        nodeUri + "op");
-
-                    op.Execute(tuple);
-                    // This delegate is an asynchronous delegate. Two delegates must 
-                    // be created. The first is the system-defined AsyncCallback 
-                    // delegate, which references the method that the remote type calls 
-                    // back when the remote method is done.
-
-                    AsyncCallback RemoteCallback = new AsyncCallback(this.AsyncCallBack);
-
-                    // Create the delegate to the remote method you want to use 
-                    // asynchronously.
-                    OperatorDelegate RemoteDel = new OperatorDelegate(op.Execute);
-
-                    // Start the method call. Note that execution on this 
-                    // thread continues immediately without waiting for the return of 
-                    // the method call. 
-                    IAsyncResult RemAr = RemoteDel.BeginInvoke(tuple, RemoteCallback, handleNum);
-                    Console.WriteLine("This is right after invoking");
-                    AsyncHandles.SetValue(RemAr.AsyncWaitHandle, handleNum);
-                    handleNum++;
-                }
-            }
-            WaitHandle.WaitAll(AsyncHandles);
-            handleNum = 0;
-        }
+        abstract public TupleStream Execute(TupleStream tuple);
     }
 
-    public class Unique : Operator
+    public class UNIQ : Operator
     {
         public int FieldNumber { get; }
         public IDictionary<string, int> InputTuples { get; }
 
-        public Unique(int fieldNumber, string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
+        public UNIQ(int fieldNumber, string id, string operatorSpec, ICollection<object> operatorParameters) : base(id, operatorSpec, operatorParameters)
         {
-            this.FieldNumber = fieldNumber;
+            // Field number inputs start at 1
+            this.FieldNumber = fieldNumber - 1;
             this.InputTuples = new Dictionary<string, int>();
         }
 
-        public override void Execute(TupleStream tuple)
+        public override TupleStream Execute(TupleStream tuple)
         {
             var elem = tuple.Elems[this.FieldNumber];
-            if (InputTuples.ContainsKey(elem))
+            if (!InputTuples.ContainsKey(elem))
             {
-                InputTuples[elem]++;
+                InputTuples.Add(elem, 1);
+                return (tuple);
             }
-            InputTuples.Add(elem, 0);
+            InputTuples[elem]++;
+            return null;
         }
     }
 
-    public class Count : Operator
+    public class COUNT : Operator
     {
         public int TupleCount { get; set; }
 
-        public Count(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
+        public COUNT(string id, string operatorSpec, ICollection<object> operatorParameters) : base(id, operatorSpec, operatorParameters)
         {
             this.TupleCount = 0;
         }
-        public override void Execute(TupleStream tuple)
+
+        public override TupleStream Execute(TupleStream tuple)
         {
             this.TupleCount++;
+            var output = new List<string>();
+            output.Add(this.TupleCount.ToString());
+            return new TupleStream(output);
         }
     }
 
-    public class Dup : Operator
+    public class DUP : Operator
     {
-        public IList<TupleStream> InputTuples { get; }
 
-        public Dup()
+        public DUP(string id, string operatorSpec, ICollection<object> operatorParameters) : base(id, operatorSpec, operatorParameters)
         {
-            Console.WriteLine("Created DUP");
-            this.InputTuples = new List<TupleStream>();
         }
 
-        public Dup(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
+        public override TupleStream Execute(TupleStream tuple)
         {
-            Console.WriteLine("Created DUP");
-            this.InputTuples = new List<TupleStream>();
-        }
-
-        public override void Execute(TupleStream tuple)
-        {
-            Console.WriteLine("Executing DUP");
-            System.Threading.Thread.Sleep(1000);
-            this.InputTuples.Add(tuple);
+            Console.WriteLine("Executing dup " + tuple.Elems[0]);
+            return tuple;
         }
     }
 
-    public class Filter : Operator
+    public class FILTER : Operator
     {
         public IList<TupleStream> InputTuples { get; }
 
-        public Filter(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
+        public FILTER(string id, string operatorSpec, ICollection<object> operatorParameters) : base(id, operatorSpec, operatorParameters)
         {
             this.InputTuples = new List<TupleStream>();
         }
 
-        public override void Execute(TupleStream tuple)
+        public override TupleStream Execute(TupleStream tuple)
         {
-            this.InputTuples.Add(tuple);
+            return tuple;
         }
     }
 
-    public class Custom : Operator
+    public class CUSTOM : Operator
     {
         public IList<TupleStream> InputTuples { get; }
 
-        public Custom(string id, string operatorSpec, ICollection<object> operatorParameters, Replica replica, ICollection<Replica> outputReplicas) : base(id, operatorSpec, operatorParameters, replica, outputReplicas)
+        public CUSTOM(string id, string operatorSpec, ICollection<object> operatorParameters) : base(id, operatorSpec, operatorParameters)
         {
             this.InputTuples = new List<TupleStream>();
         }
 
-        public override void Execute(TupleStream tuple)
+        public override TupleStream Execute(TupleStream tuple)
         {
-            this.InputTuples.Add(tuple);
+            return tuple;
         }
     }
 }

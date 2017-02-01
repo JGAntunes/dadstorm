@@ -1,67 +1,57 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Remoting;
+using System.Runtime.Remoting.Channels;
+using System.Runtime.Remoting.Channels.Tcp;
+using System.Runtime.Serialization.Formatters;
 
-namespace DADStorm
+namespace DADStormCore
 {
+    [Serializable]
     public class Replica
     {
-        public IList<Node> Nodes { get; set; }
-        public Type OperatorType;
+        public IList<Uri> Nodes { get; set; }
+        public Operator Operator { get; }
+        public IList<Replica> OutputReplicas { get; }
         public IPolicy RoutingPolicy;
 
-        public Replica(Type operatorType)
+        public Replica(Operator op, IList<Replica> outputReplicas)
         {
-            this.OperatorType = operatorType;
-            this.Nodes = new List<Node>();
+            this.Nodes = new List<Uri>();
             this.RoutingPolicy = new PrimaryRouting();
+            this.Operator = op;
+            this.OutputReplicas = outputReplicas;
         }
 
-        public Replica(Type operatorType, List<Node> nodes)
+        public Replica(Operator op, IList<Replica> outputReplicas, IPolicy routingPolicy)
         {
-            this.OperatorType = operatorType;
-            this.Nodes = nodes;
-            this.RoutingPolicy = new PrimaryRouting();
-        }
-
-        public Replica(Type operatorType, IPolicy routingPolicy)
-        {
-            this.OperatorType = operatorType;
-            this.Nodes = new List<Node>();
+            this.Nodes = new List<Uri>();
             this.RoutingPolicy = routingPolicy;
+            this.Operator = op;
+            this.OutputReplicas = outputReplicas;
         }
 
-        public Replica(Type operatorType, List<Node> nodes, IPolicy routingPolicy)
+        public void AddNode(Uri uri)
         {
-            this.OperatorType = operatorType;
-            this.Nodes = nodes;
-            this.RoutingPolicy = routingPolicy;
+            this.Nodes.Add(uri);
         }
 
-        public void AddNode(Node node)
+        public void AddNode(string uri)
         {
-            this.Nodes.Add(node);
+            this.Nodes.Add(new Uri(uri));
         }
 
-        public void AddNode(Uri uri, string name)
+        public Uri resolve(TupleStream tuple)
         {
-            this.Nodes.Add(new Node(uri, name));
-        }
-
-        public void AddNode(string uri, string name)
-        {
-            this.Nodes.Add(new Node(uri, name));
-        }
-
-        public Uri resolve()
-        {
-            return this.RoutingPolicy.resolveRouting(this);
+            return this.RoutingPolicy.resolveRouting(this, tuple);
         }
 
         public void Run()
         {
-            foreach(Node node in this.Nodes)
+            foreach(Uri node in this.Nodes)
             {
-                node.Run(this.OperatorType);
+                
             }
         }
     }

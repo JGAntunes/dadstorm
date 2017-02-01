@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace DADStorm
+namespace DADStormCore
 {
     [Serializable]
     public class TupleStream
